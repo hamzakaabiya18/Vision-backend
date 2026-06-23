@@ -18,8 +18,15 @@ connectDB()
 const app    = express()
 const server = http.createServer(app)
 
+const allowedOrigins = [
+  process.env.CLIENT_URL || 'http://localhost:3000',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:5173',
+]
+
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_URL || 'http://localhost:3000', methods: ['GET','POST'] },
+  cors: { origin: allowedOrigins, methods: ['GET','POST'] },
 })
 
 /* ── Socket.io real-time chat ── */
@@ -57,7 +64,7 @@ io.on('connection', (socket) => {
 })
 
 /* ── Middleware ── */
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000' }))
+app.use(cors({ origin: allowedOrigins, credentials: true }))
 app.use(express.json({ limit: '2mb' }))
 
 /* ── Routes ── */
