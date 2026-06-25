@@ -26,8 +26,22 @@ const allowedOrigins = [
   'http://localhost:5173',
 ]
 
+/* Allow any Vercel deployment (production + per-branch/preview URLs) in
+   addition to the fixed local dev origins above. */
+function isAllowedOrigin(origin) {
+  if (!origin) return true // same-origin / non-browser requests (curl, server-to-server)
+  if (allowedOrigins.includes(origin)) return true
+  if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin)) return true
+  return false
+}
+
+const corsOriginCheck = (origin, callback) => {
+  if (isAllowedOrigin(origin)) callback(null, true)
+  else callback(new Error(`Not allowed by CORS: ${origin}`))
+}
+
 const io = new Server(server, {
-  cors: { origin: allowedOrigins, methods: ['GET','POST'] },
+  cors: { origin: corsOriginCheck, methods: ['GET','POST'] },
 })
 
 /* ── Socket.io real-time chat ── */
@@ -65,7 +79,7 @@ io.on('connection', (socket) => {
 })
 
 /* ── Middleware ── */
-app.use(cors({ origin: allowedOrigins, credentials: true }))
+app.use(cors({ origin: corsOriginCheck, credentials: true }))
 app.use(express.json({ limit: '2mb' }))
 
 /* ── Routes ── */
