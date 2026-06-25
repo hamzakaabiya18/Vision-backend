@@ -14,9 +14,19 @@ const userSchema = new mongoose.Schema({
   activities: { type: Number, default: 0 },
   followers:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  savedRoutes:[{ type: mongoose.Schema.Types.ObjectId, ref: 'Route' }],
   role:       { type: String, enum: ['user', 'admin'], default: 'user' },
   verified:   { type: Boolean, default: false },
   online:     { type: Boolean, default: false },
+  isBot:      { type: Boolean, default: false },
+  settings: {
+    appearance:              { type: String, enum: ['light','dark','system'], default: 'light' },
+    mapStyle:                { type: String, enum: ['standard','satellite','terrain'], default: 'standard' },
+    profileVisibility:       { type: String, enum: ['public','private'], default: 'public' },
+    showActivityLocation:    { type: Boolean, default: true },
+    showSavedRoutesPublicly: { type: Boolean, default: true },
+    messagePrivacy:          { type: String, enum: ['everyone','followers'], default: 'everyone' },
+  },
 }, { timestamps: true })
 
 userSchema.pre('save', async function (next) {

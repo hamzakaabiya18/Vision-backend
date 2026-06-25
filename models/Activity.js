@@ -19,6 +19,7 @@ const activitySchema = new mongoose.Schema({
   location:        { type: String, default: '' },
   routePoints:     [routePointSchema],
   imageUrl:        { type: String, default: '' },
+  videoUrl:        { type: String, default: '' },
   notes:           { type: String, default: '' },
   likes:           [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   comments:        [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],

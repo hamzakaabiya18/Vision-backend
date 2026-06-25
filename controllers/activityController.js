@@ -5,13 +5,16 @@ const User     = require('../models/User')
 async function getFeed(req, res) {
   const { limit = 20, offset = 0 } = req.query
   const following = req.user.following.concat(req.user._id)
-  const activities = await Activity.find({ user: { $in: following }, visibility: { $ne: 'private' } })
+  /* Show activities from people the user follows, plus all public activities
+     so a brand-new account still sees real content instead of an empty feed. */
+  const filter = { $or: [{ user: { $in: following } }, { visibility: 'public' }] }
+  const activities = await Activity.find(filter)
     .populate('user', 'username fullName avatarUrl verified')
-    .populate({ path: 'comments', populate: { path: 'user', select: 'username avatarUrl' } })
+    .populate({ path: 'comments', populate: { path: 'user', select: 'username avatarUrl fullName' } })
     .sort({ createdAt: -1 })
     .skip(Number(offset))
     .limit(Number(limit))
-  const total = await Activity.countDocuments({ user: { $in: following }, visibility: { $ne: 'private' } })
+  const total = await Activity.countDocuments(filter)
   res.json({ activities, total })
 }
 

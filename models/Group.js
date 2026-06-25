@@ -9,6 +9,7 @@ const groupSchema = new mongoose.Schema({
   coverImage:  { type: String, default: '' },
   admin:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   members:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  isDefault:   { type: Boolean, default: false },
 }, { timestamps: true })
 
 groupSchema.index({ name: 'text', description: 'text', sportType: 1 })

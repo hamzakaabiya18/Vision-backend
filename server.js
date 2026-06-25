@@ -12,6 +12,7 @@ const activityRoutes = require('./routes/activityRoutes')
 const groupRoutes    = require('./routes/groupRoutes')
 const messageRoutes  = require('./routes/messageRoutes')
 const statsRoutes    = require('./routes/statsRoutes')
+const routeRoutes    = require('./routes/routeRoutes')
 
 connectDB()
 
@@ -74,6 +75,7 @@ app.use('/api/activities', activityRoutes)
 app.use('/api/groups',     groupRoutes)
 app.use('/api/messages',   messageRoutes)
 app.use('/api/stats',      statsRoutes)
+app.use('/api/routes',     routeRoutes)
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok' }))
 
