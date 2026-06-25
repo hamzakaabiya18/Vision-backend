@@ -3,6 +3,52 @@ const User     = require('../models/User')
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
+const DEMO_ATHLETES = [
+  { fullName:'Marcus Chen',    username:'marcus_runs',   email:'marcus.demo@vision.app',  avatarUrl:'https://images.unsplash.com/photo-1499996860823-5214fcc65f8f?w=80&q=80', sportType:'Run',  monthlyKm:[58,72,80,69,91,104] },
+  { fullName:'Sara Valeri',    username:'sara_cycles',   email:'sara.demo@vision.app',    avatarUrl:'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80', sportType:'Ride', monthlyKm:[110,98,120,105,131,140] },
+  { fullName:'Leo Brooks',     username:'leo_trails',    email:'leo.demo@vision.app',     avatarUrl:'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=80&q=80', sportType:'Hike', monthlyKm:[40,52,38,61,55,70] },
+  { fullName:'Nadia Kowalski', username:'nadia_tri',     email:'nadia.demo@vision.app',   avatarUrl:'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&q=80', sportType:'Swim', monthlyKm:[80,75,90,84,96,88] },
+  { fullName:'Amara Diallo',   username:'amara_sprints', email:'amara.demo@vision.app',   avatarUrl:'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&q=80', sportType:'Run',  monthlyKm:[60,58,71,66,80,77] },
+]
+
+async function ensureDemoAthletes() {
+  const existing = await User.countDocuments({ isDemoAthlete: true })
+  if (existing >= DEMO_ATHLETES.length) return
+
+  for (const a of DEMO_ATHLETES) {
+    let user = await User.findOne({ username: a.username })
+    if (!user) {
+      user = await User.create({
+        fullName: a.fullName, username: a.username, email: a.email,
+        password: Math.random().toString(36).slice(2) + Date.now(),
+        avatarUrl: a.avatarUrl, isDemoAthlete: true, verified: true,
+        sportTags: [a.sportType],
+      })
+    }
+    const hasActivities = await Activity.exists({ user: user._id })
+    if (!hasActivities) {
+      const now = new Date()
+      const docs = a.monthlyKm.map((km, i) => {
+        const monthsAgo = a.monthlyKm.length - 1 - i
+        const date = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 10)
+        return {
+          user: user._id,
+          title: `${a.sportType} session`,
+          sportType: a.sportType,
+          distanceKm: km,
+          durationMinutes: Math.round(km * 5.5),
+          calories: Math.round(km * 60),
+          createdAt: date,
+          updatedAt: date,
+        }
+      })
+      await Activity.insertMany(docs)
+      const totalKm = a.monthlyKm.reduce((s, k) => s + k, 0)
+      await User.findByIdAndUpdate(user._id, { totalKm, activities: docs.length })
+    }
+  }
+}
+
 function fmtPace(totalMin, totalKm) {
   if (!totalKm || !totalMin) return '--:--'
   const paceMin = totalMin / totalKm
@@ -75,6 +121,8 @@ async function getMyStats(req, res) {
 }
 
 async function getGlobalStats(req, res) {
+  await ensureDemoAthletes()
+
   const topRunners = await User.find({ isBot: { $ne: true } })
     .sort({ totalKm: -1 })
     .limit(10)

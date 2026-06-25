@@ -19,6 +19,7 @@ const userSchema = new mongoose.Schema({
   verified:   { type: Boolean, default: false },
   online:     { type: Boolean, default: false },
   isBot:      { type: Boolean, default: false },
+  isDemoAthlete: { type: Boolean, default: false },
   settings: {
     appearance:              { type: String, enum: ['light','dark','system'], default: 'light' },
     mapStyle:                { type: String, enum: ['standard','satellite','terrain'], default: 'standard' },
