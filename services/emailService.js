@@ -60,11 +60,35 @@ async function notifyDirectMessage({ persona, recipientName, user, body, convers
       body,
     ].filter(Boolean).join('\n')
 
+    const appUrl   = process.env.CLIENT_URL || 'https://vision-ten-tau.vercel.app'
+    const replyUrl = `${appUrl}?openChat=${user._id}`
+
+    const html = `
+<div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;background:#fff;border-radius:16px;border:1px solid #e8f4f4;overflow:hidden">
+  <div style="background:linear-gradient(135deg,#004444,#008080);padding:28px 32px">
+    <p style="color:#00E676;font-size:12px;font-weight:700;letter-spacing:.12em;margin:0 0 4px">VISION ATHLETIC INTELLIGENCE</p>
+    <p style="color:#fff;font-size:22px;font-weight:800;margin:0">New message for ${recipientName}</p>
+  </div>
+  <div style="padding:28px 32px">
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+      <tr><td style="padding:6px 0;color:#9aaab8;font-size:12px;font-weight:600;width:100px">FROM</td><td style="padding:6px 0;color:#1a1a2e;font-size:14px;font-weight:700">${user.fullName || user.username} (@${user.username})</td></tr>
+      <tr><td style="padding:6px 0;color:#9aaab8;font-size:12px;font-weight:600">EMAIL</td><td style="padding:6px 0;color:#1a1a2e;font-size:14px">${user.email || 'n/a'}</td></tr>
+      <tr><td style="padding:6px 0;color:#9aaab8;font-size:12px;font-weight:600">TIME</td><td style="padding:6px 0;color:#1a1a2e;font-size:14px">${new Date().toLocaleString()}</td></tr>
+    </table>
+    <div style="background:#f7fbfb;border-left:4px solid #008080;border-radius:0 12px 12px 0;padding:16px 20px;margin-bottom:28px">
+      <p style="margin:0;color:#1a1a2e;font-size:15px;line-height:1.6">${body.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p>
+    </div>
+    <a href="${replyUrl}" style="display:inline-block;background:linear-gradient(135deg,#008080,#00c853);color:#fff;text-decoration:none;padding:14px 32px;border-radius:12px;font-size:15px;font-weight:700;letter-spacing:.02em">Reply in VISION</a>
+    <p style="margin:20px 0 0;color:#9aaab8;font-size:12px">Or open the app and search for <strong>@${user.username}</strong> in Messages.</p>
+  </div>
+</div>`
+
     await resend.emails.send({
       from: 'VISION Support <onboarding@resend.dev>',
       to,
-      subject: `VISION — new message for ${recipientName} from ${user.fullName || user.username}`,
+      subject: `VISION — ${user.fullName || user.username} sent you a message`,
       text,
+      html,
     })
     console.log('[email] Support email sent successfully via Resend')
     return { sent: true, error: null, to }
