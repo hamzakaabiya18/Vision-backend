@@ -15,8 +15,10 @@ const statsRoutes    = require('./routes/statsRoutes')
 const routeRoutes    = require('./routes/routeRoutes')
 const adminRoutes    = require('./routes/adminRoutes')
 const publicRoutes   = require('./routes/publicRoutes')
+const { logStartupStatus } = require('./services/emailService')
 
 connectDB()
+logStartupStatus()
 
 const app    = express()
 const server = http.createServer(app)

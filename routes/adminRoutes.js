@@ -1,5 +1,5 @@
 const express = require('express')
-const { getStats, getUsers, updateUserRole } = require('../controllers/adminController')
+const { getStats, getUsers, updateUserRole, getSupportMessages, sendTestEmail } = require('../controllers/adminController')
 const { protect, adminOnly } = require('../middleware/authMiddleware')
 const router = express.Router()
 
@@ -10,5 +10,7 @@ router.use(protect, adminOnly)
 router.get('/stats', getStats)
 router.get('/users', getUsers)
 router.patch('/users/:id/role', updateUserRole)
+router.get('/support-messages', getSupportMessages)
+router.post('/test-email', sendTestEmail)
 
 module.exports = router
