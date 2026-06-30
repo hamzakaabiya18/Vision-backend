@@ -173,26 +173,30 @@ async function sendMessage(req, res) {
   if (receiver.isBot) {
     const persona = PERSONA_BY_USERNAME[receiver.username] || 'coach'
 
-    /* The user's message is already safely persisted above regardless of
-       what happens next — we await the email attempt (it's a single SMTP
-       call, not slow enough to matter) so the bot's acknowledgment and
-       the message record can both honestly reflect whether the admin
-       was actually notified, instead of assuming success. */
-    const emailResult = await notifyDirectMessage({
-      persona: receiver.username, // stable id, not the display name
+    /* Mark as support message immediately — then fire the email in the
+       background so the HTTP response is never delayed by SMTP latency
+       or timeouts. The DB record is updated once the email attempt
+       completes (success OR failure), so admins can audit via
+       GET /api/admin/support-messages even when email is slow/failing. */
+    msg.isSupportMessage = true
+    msg.supportRecipient = receiver.fullName
+    await msg.save()
+
+    /* Fire-and-forget: response goes out NOW, email races in background. */
+    notifyDirectMessage({
+      persona: receiver.username,
       recipientName: receiver.fullName,
       user: req.user,
       body,
       conversationId: msg._id,
-    })
+    }).then(result => {
+      Message.findByIdAndUpdate(msg._id, {
+        emailSent: result.sent,
+        emailError: result.error,
+      }).catch(() => {})
+    }).catch(() => {})
 
-    msg.isSupportMessage = true
-    msg.supportRecipient = receiver.fullName
-    msg.emailSent = emailResult.sent
-    msg.emailError = emailResult.error
-    await msg.save()
-
-    const replyBody = `${botTipFor(persona, body)} ${botAckFor(emailResult.sent)}`
+    const replyBody = `${botTipFor(persona, body)} ${botAckFor(false)}`
     const reply = await Message.create({ sender: receiver._id, receiver: req.user._id, body: replyBody, type: 'bot' })
     await reply.populate('sender receiver', 'username avatarUrl fullName')
 
@@ -200,8 +204,8 @@ async function sendMessage(req, res) {
       message: msg,
       reply,
       messageSaved: true,
-      emailSent: emailResult.sent,
-      emailError: emailResult.error,
+      emailSent: null,
+      emailNote: 'Email notification is processing in the background.',
     })
   }
 
