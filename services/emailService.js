@@ -11,7 +11,7 @@ let warnedOnce = false
    persona without a dedicated address configured. */
 const PERSONA_EMAIL_ENV = {
   support:     'HAMZA_EMAIL',
-  coordinator: 'ASSALE_EMAIL',
+  coordinator: 'ASALEH_EMAIL',
   coach:       'MAY_EMAIL',
 }
 
