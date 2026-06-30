@@ -1,7 +1,7 @@
 const Message = require('../models/Message')
 const User    = require('../models/User')
 const mongoose = require('mongoose')
-const { notifySupportMessage } = require('../services/emailService')
+const { notifyDirectMessage } = require('../services/emailService')
 
 /* Official VISION bot personas. Replies are simple keyword rules today,
    structured so a real AI call can replace replyFor() later without
@@ -144,12 +144,13 @@ async function sendMessage(req, res) {
 
   if (receiver.isBot) {
     const persona = PERSONA_BY_USERNAME[receiver.username] || 'coach'
-    if (persona === 'support') {
-      /* Fire-and-forget: never block or fail the user's message because
-         email notification is slow/unconfigured — the message is already
-         safely persisted above regardless of email outcome. */
-      notifySupportMessage({ user: req.user, body, conversationId: msg._id }).catch(() => {})
-    }
+    /* Fire-and-forget: never block or fail the user's message because
+       email notification is slow/unconfigured — the message is already
+       safely persisted above regardless of email outcome. Every official
+       persona (HAMZA, ASALA, MAY) has a real human behind it, so each one
+       gets notified, not just "support". */
+    notifyDirectMessage({ persona, recipientName: receiver.fullName, user: req.user, body, conversationId: msg._id }).catch(() => {})
+
     const reply = await Message.create({ sender: receiver._id, receiver: req.user._id, body: botReplyFor(persona, body), type: 'bot' })
     await reply.populate('sender receiver', 'username avatarUrl fullName')
     return res.status(201).json({ message: msg, reply })

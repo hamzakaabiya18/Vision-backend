@@ -1,13 +1,27 @@
 const nodemailer = require('nodemailer')
 
-/* Sends support-message notifications to a human admin. Gracefully no-ops
-   if SMTP isn't configured — the message is always saved to the database
-   regardless, this is purely a "notify a human" convenience on top. */
+/* Sends a "you got a message" notification to a human behind a VISION
+   bot/admin persona. Gracefully no-ops if SMTP isn't configured — the
+   message is always saved to the database regardless, this is purely a
+   "notify a human" convenience on top. */
 let transporter = null
 let warnedOnce = false
 
-function isConfigured() {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.SUPPORT_EMAIL)
+/* Per-persona recipient mapping. Falls back to SUPPORT_EMAIL for any
+   persona without a dedicated address configured. */
+const PERSONA_EMAIL_ENV = {
+  support:     'HAMZA_EMAIL',
+  coordinator: 'ASSALE_EMAIL',
+  coach:       'MAY_EMAIL',
+}
+
+function recipientFor(persona) {
+  const envKey = PERSONA_EMAIL_ENV[persona]
+  return (envKey && process.env[envKey]) || process.env.SUPPORT_EMAIL
+}
+
+function smtpConfigured() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
 }
 
 function getTransporter() {
@@ -21,10 +35,11 @@ function getTransporter() {
   return transporter
 }
 
-async function notifySupportMessage({ user, body, conversationId }) {
-  if (!isConfigured()) {
+async function notifyDirectMessage({ persona, recipientName, user, body, conversationId }) {
+  const to = recipientFor(persona)
+  if (!smtpConfigured() || !to) {
     if (!warnedOnce) {
-      console.warn('Support email not sent because SMTP is not configured.')
+      console.warn('Email notification skipped because SMTP is not configured.')
       warnedOnce = true
     }
     return
@@ -32,12 +47,13 @@ async function notifySupportMessage({ user, body, conversationId }) {
   try {
     await getTransporter().sendMail({
       from: process.env.FROM_EMAIL || process.env.SMTP_USER,
-      to: process.env.SUPPORT_EMAIL,
-      subject: `VISION Support — new message from ${user.fullName || user.username}`,
+      to,
+      subject: `VISION — new message for ${recipientName} from ${user.fullName || user.username}`,
       text: [
-        `User: ${user.fullName} (@${user.username})`,
-        `User email: ${user.email || 'n/a'}`,
-        `User ID: ${user._id}`,
+        `To: ${recipientName}`,
+        `From: ${user.fullName} (@${user.username})`,
+        `Sender email: ${user.email || 'n/a'}`,
+        `Sender user ID: ${user._id}`,
         conversationId ? `Conversation ID: ${conversationId}` : null,
         `Time: ${new Date().toISOString()}`,
         '',
@@ -46,8 +62,8 @@ async function notifySupportMessage({ user, body, conversationId }) {
       ].filter(Boolean).join('\n'),
     })
   } catch (err) {
-    console.warn('Support email failed to send:', err.message)
+    console.warn('Email notification failed to send:', err.message)
   }
 }
 
-module.exports = { notifySupportMessage, isConfigured }
+module.exports = { notifyDirectMessage }
