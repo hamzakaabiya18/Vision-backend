@@ -173,28 +173,22 @@ async function sendMessage(req, res) {
   if (receiver.isBot) {
     const persona = PERSONA_BY_USERNAME[receiver.username] || 'coach'
 
-    /* Mark as support message immediately — then fire the email in the
-       background so the HTTP response is never delayed by SMTP latency
-       or timeouts. The DB record is updated once the email attempt
-       completes (success OR failure), so admins can audit via
-       GET /api/admin/support-messages even when email is slow/failing. */
-    msg.isSupportMessage = true
-    msg.supportRecipient = receiver.fullName
-    await msg.save()
-
-    /* Fire-and-forget: response goes out NOW, email races in background. */
-    notifyDirectMessage({
+    /* Resend uses HTTPS and responds in < 1 second, so we can safely
+       await it — no blocking concern. Awaiting ensures the email
+       actually completes before Render's free tier process recycles. */
+    const emailResult = await notifyDirectMessage({
       persona: receiver.username,
       recipientName: receiver.fullName,
       user: req.user,
       body,
       conversationId: msg._id,
-    }).then(result => {
-      Message.findByIdAndUpdate(msg._id, {
-        emailSent: result.sent,
-        emailError: result.error,
-      }).catch(() => {})
-    }).catch(() => {})
+    })
+
+    msg.isSupportMessage = true
+    msg.supportRecipient = receiver.fullName
+    msg.emailSent = emailResult.sent
+    msg.emailError = emailResult.error
+    await msg.save()
 
     const replyBody = `${botTipFor(persona, body)} ${botAckFor(false)}`
     const reply = await Message.create({ sender: receiver._id, receiver: req.user._id, body: replyBody, type: 'bot' })
