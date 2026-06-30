@@ -92,4 +92,18 @@ async function leaveGroup(req, res) {
   res.json({ joined: false, memberCount: group.members.length })
 }
 
-module.exports = { getGroups, createGroup, getGroup, updateGroup, deleteGroup, joinGroup, leaveGroup }
+async function removeMember(req, res) {
+  const group = await Group.findById(req.params.id)
+  if (!group) return res.status(404).json({ message: 'Group not found' })
+
+  const isOwner   = String(group.admin) === String(req.user._id)
+  const isAdmin   = req.user.role === 'admin'
+  if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Only the group owner can remove members' })
+  if (String(group.admin) === String(req.params.userId)) return res.status(400).json({ message: 'Cannot remove the group owner' })
+
+  group.members.pull(req.params.userId)
+  await group.save()
+  res.json({ message: 'Member removed', memberCount: group.members.length })
+}
+
+module.exports = { getGroups, createGroup, getGroup, updateGroup, deleteGroup, joinGroup, leaveGroup, removeMember }

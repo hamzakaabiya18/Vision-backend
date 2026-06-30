@@ -21,4 +21,12 @@ function adminOnly(req, res, next) {
   next()
 }
 
-module.exports = { protect, adminOnly }
+/* Platform-wide permission to create/manage groups. Real ownership of a
+   *specific* group is still enforced separately via Group.admin. */
+function groupOwnerOrAdmin(req, res, next) {
+  if (req.user?.role !== 'groupOwner' && req.user?.role !== 'admin')
+    return res.status(403).json({ message: 'Group owner or admin only' })
+  next()
+}
+
+module.exports = { protect, adminOnly, groupOwnerOrAdmin }

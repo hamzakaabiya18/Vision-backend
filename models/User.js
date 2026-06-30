@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
   followers:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following:  [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   savedRoutes:[{ type: mongoose.Schema.Types.ObjectId, ref: 'Route' }],
-  role:       { type: String, enum: ['user', 'admin'], default: 'user' },
+  role:       { type: String, enum: ['user', 'groupOwner', 'admin'], default: 'user' },
   verified:   { type: Boolean, default: false },
   online:     { type: Boolean, default: false },
   isBot:      { type: Boolean, default: false },

@@ -2,43 +2,80 @@ const Message = require('../models/Message')
 const User    = require('../models/User')
 const mongoose = require('mongoose')
 
-const BOT_EMAIL = 'vision.coach@vision.app'
+/* Official VISION bot personas. Replies are simple keyword rules today,
+   structured so a real AI call can replace replyFor() later without
+   touching the persistence/routing logic around it. */
+const BOTS = [
+  { username: 'hamza_support',     persona: 'support',     fullName: 'HAMZA', bio: 'System manager & technical support for VISION. Ask me about app issues, your account, or how to use any feature.' },
+  { username: 'asala_coordinator', persona: 'coordinator', fullName: 'ASALA', bio: 'Events & scheduling coordinator. Ask me about marathons, sports events near you, or planning your training schedule.' },
+  { username: 'may_coach',         persona: 'coach',       fullName: 'MAY',   bio: 'Senior coach & motivational mentor. Ask me for training direction, motivation, or how to push past a plateau.' },
+]
+const PERSONA_BY_USERNAME = BOTS.reduce((m, b) => { m[b.username] = b.persona; return m }, {})
 
-async function ensureBot() {
-  let bot = await User.findOne({ isBot: true })
-  if (bot) return bot
-  bot = await User.create({
-    username: 'vision_coach',
-    email: BOT_EMAIL,
-    password: Math.random().toString(36).slice(2) + Date.now(),
-    fullName: 'VISION Coach',
-    bio: 'Your built-in athletic guidance assistant. Ask about running, cycling, recovery, routes, or stats.',
-    isBot: true,
-    verified: true,
-  })
-  return bot
+async function ensureBots() {
+  const bots = {}
+  for (const b of BOTS) {
+    let bot = await User.findOne({ username: b.username })
+    if (!bot) {
+      bot = await User.create({
+        username: b.username,
+        email: `${b.username}@vision.app`,
+        password: Math.random().toString(36).slice(2) + Date.now(),
+        fullName: b.fullName,
+        bio: b.bio,
+        isBot: true,
+        verified: true,
+      })
+    }
+    bots[b.persona] = bot
+  }
+  return bots
 }
 
-function botReplyFor(text) {
+function botReplyFor(persona, text) {
   const t = text.toLowerCase()
+
+  if (persona === 'support') {
+    if (t.includes('password') || t.includes('login') || t.includes('sign in'))
+      return "You can reset your password from Profile → Settings → Account. If you're locked out, double-check your email/username is correct and try again."
+    if (t.includes('bug') || t.includes('error') || t.includes('crash') || t.includes('broken'))
+      return "Sorry about that. First, try refreshing the app. If it keeps happening, tell me exactly what screen you were on and what you tapped, and I'll note it for the team."
+    if (t.includes('profile') || t.includes('settings') || t.includes('avatar'))
+      return 'You can manage your profile and preferences from the Profile tab → Settings.'
+    return "I'm HAMZA, technical support for VISION. Tell me what's going wrong — app issue, account problem, or navigation — and I'll help."
+  }
+
+  if (persona === 'coordinator') {
+    if (t.includes('marathon') || t.includes('race') || t.includes('event'))
+      return 'City marathons and group races usually show up in Explore → Routes. Tell me your sport and city and I can point you in the right direction.'
+    if (t.includes('schedule') || t.includes('plan') || t.includes('time'))
+      return 'A balanced week usually mixes 3-4 training sessions with at least one full rest day. Tell me your available days and I\'ll help you sketch a simple plan.'
+    if (t.includes('where') || t.includes('place') || t.includes('recommend'))
+      return 'Check Explore for routes near your city, filtered by sport and difficulty — I can also suggest a sport based on how much time you have this week.'
+    return "I'm ASALA — I help with events, scheduling, and recommending where and when to train. What are you planning?"
+  }
+
+  // coach (MAY)
   if (t.includes('run'))
     return 'For your next run, try keeping the first 10 minutes easy, then increase pace gradually. Consistency beats intensity.'
   if (t.includes('cycl') || t.includes('bike') || t.includes('ride'))
     return 'On your next ride, focus on a steady cadence around 85-95 RPM rather than chasing top speed — it builds efficiency over time.'
   if (t.includes('tired') || t.includes('recovery') || t.includes('rest') || t.includes('sore'))
     return 'Recovery is part of performance. Consider a lighter session today, prioritize sleep, and stay hydrated.'
-  if (t.includes('route'))
-    return 'Explore can help you find nearby routes that match your sport and distance — check the Explore tab for recommendations near your city.'
+  if (t.includes('motivat') || t.includes('give up') || t.includes('hard') || t.includes("can't") || t.includes('cant'))
+    return "Every athlete has days like this. You don't need a perfect session — you need a consistent one. Show up, even for 15 minutes, and momentum follows."
   if (t.includes('stat') || t.includes('progress'))
     return 'Your Stats page tracks distance, sessions, and trends over time — a good place to check how this week compares to last.'
   if (t.includes('hike') || t.includes('hiking') || t.includes('trail'))
     return 'For hiking, pace yourself on climbs and keep your pack light. Check Explore for trail difficulty before heading out.'
-  return "I'm VISION Coach — ask me about running, cycling, hiking, recovery, routes, or stats, and I'll share quick guidance."
+  return "I'm MAY — your coach inside VISION. Tell me how training's going and I'll help you push the right direction."
 }
 
-async function getBotId(req, res) {
-  const bot = await ensureBot()
-  res.json({ botId: bot._id, fullName: bot.fullName, avatarUrl: bot.avatarUrl })
+async function getBotIds(req, res) {
+  const bots = await ensureBots()
+  res.json({
+    bots: Object.values(bots).map(b => ({ botId: b._id, fullName: b.fullName, username: b.username, avatarUrl: b.avatarUrl, bio: b.bio })),
+  })
 }
 
 const SAFE_USER_FIELDS = { username: 1, fullName: 1, avatarUrl: 1, isBot: 1 }
@@ -105,7 +142,8 @@ async function sendMessage(req, res) {
   await msg.populate('sender receiver', 'username avatarUrl fullName')
 
   if (receiver.isBot) {
-    const reply = await Message.create({ sender: receiver._id, receiver: req.user._id, body: botReplyFor(body), type: 'bot' })
+    const persona = PERSONA_BY_USERNAME[receiver.username] || 'coach'
+    const reply = await Message.create({ sender: receiver._id, receiver: req.user._id, body: botReplyFor(persona, body), type: 'bot' })
     await reply.populate('sender receiver', 'username avatarUrl fullName')
     return res.status(201).json({ message: msg, reply })
   }
@@ -113,4 +151,4 @@ async function sendMessage(req, res) {
   res.status(201).json({ message: msg })
 }
 
-module.exports = { getConversations, getMessages, sendMessage, getBotId }
+module.exports = { getConversations, getMessages, sendMessage, getBotIds }
