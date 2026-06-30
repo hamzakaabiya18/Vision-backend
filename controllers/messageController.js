@@ -1,6 +1,7 @@
 const Message = require('../models/Message')
 const User    = require('../models/User')
 const mongoose = require('mongoose')
+const { notifySupportMessage } = require('../services/emailService')
 
 /* Official VISION bot personas. Replies are simple keyword rules today,
    structured so a real AI call can replace replyFor() later without
@@ -37,12 +38,12 @@ function botReplyFor(persona, text) {
 
   if (persona === 'support') {
     if (t.includes('password') || t.includes('login') || t.includes('sign in'))
-      return "You can reset your password from Profile → Settings → Account. If you're locked out, double-check your email/username is correct and try again."
+      return "Thanks for reaching out. While the VISION Admin Support team reviews your message, here's a quick pointer: you can reset your password from Profile → Settings → Account."
     if (t.includes('bug') || t.includes('error') || t.includes('crash') || t.includes('broken'))
-      return "Sorry about that. First, try refreshing the app. If it keeps happening, tell me exactly what screen you were on and what you tapped, and I'll note it for the team."
+      return "Thanks for the report. Your message has been sent to the VISION support team — admin support will review it and respond as soon as possible."
     if (t.includes('profile') || t.includes('settings') || t.includes('avatar'))
-      return 'You can manage your profile and preferences from the Profile tab → Settings.'
-    return "I'm HAMZA, technical support for VISION. Tell me what's going wrong — app issue, account problem, or navigation — and I'll help."
+      return 'Thanks for reaching out. Your message has been sent to the VISION support team. In the meantime, profile and preferences live under Profile → Settings.'
+    return 'Thanks for reaching out. Your message has been sent to the VISION support team. Admin support will review it and respond as soon as possible.'
   }
 
   if (persona === 'coordinator') {
@@ -143,6 +144,12 @@ async function sendMessage(req, res) {
 
   if (receiver.isBot) {
     const persona = PERSONA_BY_USERNAME[receiver.username] || 'coach'
+    if (persona === 'support') {
+      /* Fire-and-forget: never block or fail the user's message because
+         email notification is slow/unconfigured — the message is already
+         safely persisted above regardless of email outcome. */
+      notifySupportMessage({ user: req.user, body, conversationId: msg._id }).catch(() => {})
+    }
     const reply = await Message.create({ sender: receiver._id, receiver: req.user._id, body: botReplyFor(persona, body), type: 'bot' })
     await reply.populate('sender receiver', 'username avatarUrl fullName')
     return res.status(201).json({ message: msg, reply })

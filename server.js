@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
 
 /* ── Middleware ── */
 app.use(cors({ origin: corsOriginCheck, credentials: true }))
-app.use(express.json({ limit: '2mb' }))
+app.use(express.json({ limit: '6mb' }))
 
 /* ── Routes ── */
 app.use('/api/auth',       authRoutes)
